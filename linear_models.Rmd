@@ -1,0 +1,135 @@
+---
+title: "linear models"
+author: "AnMei Chen"
+date: "11/16/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(p8105.datasets)
+
+set.seed(1)
+
+```
+
+
+Load NYC airbnb
+
+```{r}
+data("nyc_airbnb")
+
+nyc_airbnb = 
+  nyc_airbnb %>% 
+  mutate(stars = review_scores_location / 2) %>% 
+  rename(
+    borough = neighbourhood_group
+  ) %>% 
+  filter(borough != "Staten Island") %>% 
+  select(price,stars,borough,neighbourhood,room_type)
+```
+
+visualization...
+
+```{r}
+nyc_airbnb %>% 
+  ggplot(aes(x = stars, y = price)) +
+  geom_point()
+```
+
+Lets fit a linear model ...
+
+```{r}
+fit = lm(price ~ stars +borough, data = nyc_airbnb)
+```
+
+Let's look at this ...
+
+```{r}
+summary(fit)
+summary(fit)$coef
+
+```
+
+If you want to present output ...
+
+```{r}
+fit %>% 
+  broom::tidy() %>% 
+  mutate(term = str_replace(term, "borough", "Borough: ")) %>% 
+  select(term,estimate,p.value) %>% 
+  knitr::kable(digits = 3)
+```
+
+## Diagnostics
+
+```{r}
+
+modelr::add_residuals(nyc_airbnb, fit) %>% 
+  ggplot(aes(x = stars, y = resid)) +
+  geom_point()
+
+modelr::add_residuals(nyc_airbnb, fit) %>% 
+  ggplot(aes(x = resid)) +
+  geom_density() +
+  xlim(-200,200)
+
+
+```
+
+## interactions? Nesting?
+
+Lets try a different model ...
+
+```{r}
+fit = lm(price ~ stars * borough + room_type, data = nyc_airbnb)
+
+broom::tidy(fit)
+```
+
+Let's try nesting ...
+
+```{r}
+nyc_airbnb %>% 
+  relocate(borough) %>% 
+  nest(data = price:room_type) %>% 
+  mutate(
+    lm_fits = map(.x = data,~lm(price ~ stars + room_type, data = .x)),
+    lm_results = map(lm_fits, broom::tidy)
+  ) %>% 
+  select(borough,lm_results) %>% 
+  unnest(lm_results) %>% 
+  filter(term == "stars")
+```
+
+Look at neighborhoods in Manhattan...
+
+```{r}
+manhattan_lm_results_df = 
+  nyc_airbnb %>% 
+  filter(borough == "Manhattan") %>% 
+  select(-borough) %>% 
+  relocate(neighbourhood) %>% 
+  nest(data = price:room_type) %>% 
+  mutate(
+    lm_fits = map(data, ~lm(price ~ stars + room_type, data = .x)),
+    lm_results = map(lm_fits, broom::tidy)
+  ) %>% 
+  select(neighbourhood, lm_results) %>% 
+  unnest(lm_results)
+
+manhattan_lm_results_df %>% 
+  filter(term == "stars") %>% 
+  ggplot(aes(x = estimate)) +
+  geom_density()
+
+manhattan_lm_results_df %>% 
+  filter(str_detect(term, "room_type")) %>% 
+  ggplot(aes(x = neighbourhood, y = estimate)) +
+  geom_point() +
+  facet_grid(~term) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+
+
