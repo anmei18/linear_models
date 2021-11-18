@@ -1,0 +1,15 @@
+---
+title: "Cross validation"
+author: "AnMei Chen"
+date: "11/16/2021"
+output: github_document
+---
+
+```{r}
+library(tidyverse)
+library(modelr)
+library(mgcv)
+
+```
+
+

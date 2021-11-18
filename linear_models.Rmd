@@ -2,7 +2,7 @@
 title: "linear models"
 author: "AnMei Chen"
 date: "11/16/2021"
-output: html_document
+output: github_document
 ---
 
 ```{r}
